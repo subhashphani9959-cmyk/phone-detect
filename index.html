@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoadFocus — Driver Safety Monitor</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <nav class="topbar">
+      <a class="brand" href="#top" aria-label="RoadFocus home"><span class="brand-mark">◒</span> RoadFocus</a>
+      <span class="project-tag">DESIGN BUILD · SOFTWARE PROTOTYPE</span>
+      <div class="system-state"><span id="systemDot" class="dot"></span><span id="systemLabel">System standby</span></div>
+    </nav>
+
+    <section class="hero" id="top">
+      <div>
+        <p class="eyebrow">AI-ASSISTED DRIVER SAFETY</p>
+        <h1>Keep your focus<br />on the <em>road.</em></h1>
+        <p class="intro">A privacy-first, browser-based prototype that detects a mobile phone in the driver's view and immediately signals a distraction risk.</p>
+      </div>
+      <div class="privacy-note"><span>⌁</span><p><strong>100% local processing</strong><br />Your camera feed never leaves this laptop.</p></div>
+    </section>
+
+    <section class="monitor-grid" aria-label="Detection monitor">
+      <article class="camera-card">
+        <div class="card-topline"><span class="live-label"><i></i> LIVE CAMERA</span><span id="fps" class="mono">-- FPS</span></div>
+        <div id="cameraStage" class="camera-stage">
+          <video id="webcam" autoplay muted playsinline></video>
+          <canvas id="overlay"></canvas>
+          <div id="emptyState" class="empty-state"><div class="camera-icon">◉</div><strong>Camera is off</strong><span>Start the monitor to begin live detection.</span></div>
+          <div id="warningBanner" class="warning-banner" role="alert"><span>!</span><div><strong>Phone detected</strong><small>Please return your attention to the road.</small></div></div>
+        </div>
+        <div class="camera-controls">
+          <button id="startButton" class="button primary"><span>▶</span> Start monitoring</button>
+          <button id="stopButton" class="button secondary" disabled><span>■</span> Stop</button>
+          <button id="soundButton" class="sound-toggle" aria-pressed="true" title="Toggle alert sound">♬ <span>Sound on</span></button>
+        </div>
+      </article>
+
+      <aside class="side-panel">
+        <section id="riskCard" class="risk-card safe">
+          <p class="panel-label">CURRENT STATUS</p>
+          <div class="risk-icon" id="riskIcon">✓</div>
+          <h2 id="riskTitle">Ready to monitor</h2>
+          <p id="riskText">Turn on your camera to start the safety check.</p>
+          <div class="confidence"><div class="confidence-line"><span>Detection confidence</span><b id="confidenceValue">—</b></div><div class="meter"><i id="confidenceBar"></i></div></div>
+        </section>
+        <section class="stats-card">
+          <div><span>ALERTS THIS SESSION</span><b id="alertCount">00</b></div>
+          <div><span>MONITORING TIME</span><b id="sessionTime">00:00</b></div>
+        </section>
+        <section class="model-card"><span class="model-dot"></span><div><strong id="modelStatus">Loading vision model…</strong><small>COCO-SSD · runs in your browser</small></div></section>
+      </aside>
+    </section>
+
+    <section class="how-it-works">
+      <div class="section-heading"><p class="eyebrow">BUILT FOR A LOW-COST DEMO</p><h2>How it works</h2></div>
+      <div class="steps">
+        <article><span>01</span><h3>Laptop camera</h3><p>The browser securely accesses the built-in webcam only after your permission.</p></article>
+        <article><span>02</span><h3>On-device AI</h3><p>A compact COCO-SSD vision model checks video frames for a <b>cell phone</b> — no server or paid API.</p></article>
+        <article><span>03</span><h3>Instant intervention</h3><p>When confidence crosses the safety threshold, the display and optional alert tone warn the driver.</p></article>
+      </div>
+    </section>
+    <footer>ROADFOCUS <span>•</span> Laptop-webcam prototype <span>•</span> Not a replacement for safe driving</footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
