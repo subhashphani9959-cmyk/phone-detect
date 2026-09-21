@@ -3,18 +3,31 @@ const video = document.querySelector('#webcam');
 const canvas = document.querySelector('#overlay');
 const ctx = canvas.getContext('2d');
 const el = id => document.getElementById(id);
-let model, stream, running = false, soundOn = true, warning = false;
-let alertCount = 0, lastAlert = 0, startedAt = 0, timer, lastFrame = performance.now(), frames = 0;
+let model, stream, running = false, soundOn = true, warning = false, loadingModel = false;
+const PHONE_CONFIDENCE = 0.72;
+const MIN_PHONE_AREA = 0.008;
+const REQUIRED_PHONE_FRAMES = 4;
+let alertCount = 0, lastAlert = 0, startedAt = 0, timer, lastFrame = performance.now(), frames = 0, phoneFrames = 0;
 
 async function loadModel() {
+  if (loadingModel || model) return;
+  loadingModel = true;
+  el('startButton').disabled = true;
+  el('startButton').innerHTML = '<span>◌</span> Loading AI model…';
+  el('modelStatus').textContent = 'Loading vision model…';
   try {
     model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
     el('modelStatus').textContent = 'Vision model ready';
     document.querySelector('.model-dot').classList.add('ready');
     el('startButton').disabled = false;
+    el('startButton').innerHTML = '<span>▶</span> Start monitoring';
   } catch (error) {
-    el('modelStatus').textContent = 'Model could not load — check connection';
+    el('modelStatus').textContent = 'Could not load — check internet, then retry';
+    el('startButton').disabled = false;
+    el('startButton').innerHTML = '<span>↻</span> Retry AI model';
     console.error(error);
+  } finally {
+    loadingModel = false;
   }
 }
 
@@ -24,7 +37,7 @@ async function startCamera() {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
     video.srcObject = stream;
     await video.play();
-    running = true; startedAt = Date.now();
+    running = true; startedAt = Date.now(); phoneFrames = 0;
     el('emptyState').hidden = true; el('startButton').disabled = true; el('stopButton').disabled = false;
     el('systemDot').classList.add('active'); el('systemLabel').textContent = 'Monitoring active';
     document.querySelector('.live-label i').classList.add('active');
@@ -38,7 +51,7 @@ async function startCamera() {
 }
 
 function stopCamera() {
-  running = false; clearInterval(timer); stream?.getTracks().forEach(track => track.stop()); stream = null;
+  running = false; phoneFrames = 0; clearInterval(timer); stream?.getTracks().forEach(track => track.stop()); stream = null;
   ctx.clearRect(0, 0, canvas.width, canvas.height); setWarning(false, 0);
   el('emptyState').hidden = false; el('startButton').disabled = !model; el('stopButton').disabled = true;
   el('systemDot').classList.remove('active'); el('systemLabel').textContent = 'System standby';
@@ -52,21 +65,24 @@ async function detect() {
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     const predictions = await model.detect(video, 6, 0.35);
     const phone = predictions.filter(item => item.class === 'cell phone').sort((a,b) => b.score-a.score)[0];
-    draw(predictions, phone);
-    setWarning(Boolean(phone && phone.score >= .50), phone?.score || 0);
+    const phoneArea = phone ? (phone.bbox[2] * phone.bbox[3]) / (video.videoWidth * video.videoHeight) : 0;
+    const confidentPhone = Boolean(phone && phone.score >= PHONE_CONFIDENCE && phoneArea >= MIN_PHONE_AREA);
+    phoneFrames = confidentPhone ? Math.min(phoneFrames + 1, REQUIRED_PHONE_FRAMES) : 0;
+    draw(predictions, phone, phoneFrames >= REQUIRED_PHONE_FRAMES);
+    setWarning(phoneFrames >= REQUIRED_PHONE_FRAMES, phone?.score || 0);
     frames++; const now = performance.now();
     if (now - lastFrame > 1000) { el('fps').textContent = `${frames} FPS`; frames = 0; lastFrame = now; }
   }
   requestAnimationFrame(detect);
 }
 
-function draw(predictions, phone) {
+function draw(predictions, phone, confirmed) {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   if (!phone || phone.score < .35) return;
   const [x,y,w,h] = phone.bbox;
   ctx.save(); ctx.scale(-1,1); // match the mirrored video
   const mx = -x-w;
-  ctx.strokeStyle = phone.score >= .5 ? '#e84c38' : '#c6ee52'; ctx.lineWidth = 4;
+  ctx.strokeStyle = confirmed ? '#e84c38' : '#c6ee52'; ctx.lineWidth = 4;
   ctx.strokeRect(mx,y,w,h); ctx.fillStyle = ctx.strokeStyle;
   ctx.font = '600 16px Manrope, sans-serif'; const label = `PHONE  ${Math.round(phone.score*100)}%`;
   ctx.fillRect(mx, Math.max(0,y-28), ctx.measureText(label).width+16, 28);
@@ -89,6 +105,6 @@ function setWarning(isWarning, score) {
 
 function beep() { const audio = new AudioContext(); const oscillator = audio.createOscillator(); const gain = audio.createGain(); oscillator.frequency.value = 740; gain.gain.setValueAtTime(.07,audio.currentTime); gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.25); oscillator.connect(gain).connect(audio.destination); oscillator.start(); oscillator.stop(audio.currentTime+.25); }
 function updateTime() { const seconds = Math.floor((Date.now()-startedAt)/1000); el('sessionTime').textContent = `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`; }
-el('startButton').addEventListener('click', startCamera); el('stopButton').addEventListener('click', stopCamera);
+el('startButton').addEventListener('click', () => model ? startCamera() : loadModel()); el('stopButton').addEventListener('click', stopCamera);
 el('soundButton').addEventListener('click', () => { soundOn = !soundOn; el('soundButton').classList.toggle('off',!soundOn); el('soundButton').setAttribute('aria-pressed',soundOn); el('soundButton').querySelector('span').textContent = soundOn ? 'Sound on' : 'Sound off'; });
 el('startButton').disabled = true; loadModel();
